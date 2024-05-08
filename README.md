@@ -18,3 +18,20 @@ The objective of the smart waste management system is to efficiently monitor and
 5.	Red Button: GPIO16
 6.	Blue Button: GPIO12
 7.	Passive Buzzer: GPIO18
+
+# Code Implemementation
+The Python code handles sensor data acquisition, GUI development, and control logic for security and alert systems. It utilizes libraries such as Tkinter for the GUI, RPi.GPIO for GPIO pin manipulation, and gpiozero for sensor integration.
+
+# User Manuel
+Operating Instructions:
+1. Waste Level Monitoring:
+Launch the application on the Raspberry Pi.
+The GUI will display the waste level in real-time, both numerically and visually through the LED bar graph.
+2. Setting Thresholds:
+Use the threshold scale provided in the GUI to set a threshold for waste level.
+Adjust the threshold according to your preference (e.g., 80% full).
+3. Security System:
+To unlock the trash container, press the buttons in the sequence: Blue, Red, Blue within a 3-second interval.
+Green LED indicates a correct sequence, while the Red LED indicates an incorrect sequence.
+4. Alarm System:
+If the container is opened without authorization, the passive buzzer will sound.
