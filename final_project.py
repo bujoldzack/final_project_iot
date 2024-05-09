@@ -5,6 +5,9 @@ import time
 from gpiozero import DistanceSensor
 import threading
 
+DATA_Pin = 17
+CLK_Pin  = 4
+
 # Set up GPIO pins
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
@@ -16,6 +19,11 @@ GPIO.setup(20, GPIO.OUT) # Green LED
 GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Open Container Button
 GPIO.output(21, GPIO.LOW)
 GPIO.output(20, GPIO.HIGH)
+GPIO.setup(DATA_Pin, GPIO.OUT)
+GPIO.setup(CLK_Pin,  GPIO.OUT)
+GPIO.output(DATA_Pin, GPIO.LOW)
+GPIO.output(CLK_Pin,  GPIO.LOW)
+
 
 # Initialize the sensor with trigger and echo pins
 sensor = DistanceSensor(echo=22, trigger=27)
@@ -74,24 +82,51 @@ def update_threshold_label(value):
 def update_waste_level():
     # Get average distance measured by the sensor (in meters)
     distance = get_distance()
-    
+
     # Convert distance to percentage for waste level
     waste_percentage = (1 - distance) * 100
-    
+
     # Get the threshold value set by the user
     threshold_value = threshold.get()
-    
+
     # Adjust the waste percentage based on the threshold
     if waste_percentage > threshold_value:
         adjusted_percentage = threshold_value
     else:
         adjusted_percentage = waste_percentage
-    
+
     # Update the waste level progress bar
     waste_level["value"] = adjusted_percentage
     # Update the waste level label
     waste_label.config(text=f"{adjusted_percentage:.1f}%")
-    
+    global hex_level
+    hex_level = 0x0000
+
+    if adjusted_percentage < 20:
+        hex_level = 0x0003
+        send16bitData(CmdMode)
+        sendLED(hex_level)
+        latchData()
+    if adjusted_percentage > 20 and adjusted_percentage < 40:
+        hex_level = 0x000f
+        send16bitData(CmdMode)
+        sendLED(hex_level)
+        latchData()
+    if adjusted_percentage > 40 and adjusted_percentage < 60:
+        hex_level = 0x003f
+        send16bitData(CmdMode)
+        sendLED(hex_level)
+        latchData()
+    if adjusted_percentage > 60 and adjusted_percentage < 80:
+        hex_level = 0x00ff
+        send16bitData(CmdMode)
+        sendLED(hex_level)
+        latchData()
+    if adjusted_percentage > 80 and adjusted_percentage < 100:
+        hex_level = 0x03ff
+        send16bitData(CmdMode)
+        sendLED(hex_level)
+        latchData()
     # Schedule the next update
     root.after(100, update_waste_level)
 
@@ -102,6 +137,63 @@ def get_distance():
 # Function to handle open container button press
 def open_button_pressed(channel):
     open_container()
+
+CmdMode  = 0x0000  # Work on 8-bit mode
+ON       = 0x00ff  # 8-byte 1 data
+SHUT     = 0x0000  # 8-byte 0 data
+global s_clk_flag
+s_clk_flag = 0
+
+def send16bitData(data):
+        global s_clk_flag
+        for i in range(0, 16):
+                if data & 0x8000:
+                        GPIO.output(DATA_Pin, GPIO.HIGH)
+                else:
+                        GPIO.output(DATA_Pin, GPIO.LOW)
+
+                if s_clk_flag == True:
+                        GPIO.output(CLK_Pin, GPIO.LOW)
+                        s_clk_flag = 0
+                else:
+                        GPIO.output(CLK_Pin, GPIO.HIGH)
+                        s_clk_flag = 1
+                time.sleep(0.001)
+                data = data << 1
+
+def latchData():
+        latch_flag = 0
+        GPIO.output(DATA_Pin, GPIO.LOW)
+
+        time.sleep(0.05)
+        for i in range(0, 8):
+                if latch_flag == True:
+                        GPIO.output(DATA_Pin, GPIO.LOW)
+                        latch_flag = 0
+                else:
+                        GPIO.output(DATA_Pin, GPIO.HIGH)
+                        latch_flag = 1
+        time.sleep(0.05)
+
+def sendLED(LEDstate):
+        for i in range(0, 12):
+                if (LEDstate & 0x0001) == True:
+                        send16bitData(ON)
+                else:
+                        send16bitData(SHUT)
+                LEDstate = LEDstate >> 1
+
+def loop():
+        while True:
+                global hex_level
+                hex_level = 0x000
+                while hex_level <= 0x03ff:
+                        send16bitData(CmdMode)
+                        sendLED(hex_level)
+                        latchData()
+
+def destroy():
+        GPIO.cleanup()
 
 # Initialize button_presses list
 button_presses = []
