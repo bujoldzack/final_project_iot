@@ -77,6 +77,7 @@ def activate_buzzer():
 def update_threshold_label(value):
     rounded_value = round(float(value))
     threshold_label.config(text=f"{rounded_value}%")
+    
 
 # Function to update waste level and LED bar
 def update_waste_level():
@@ -92,6 +93,7 @@ def update_waste_level():
     # Adjust the waste percentage based on the threshold
     if waste_percentage > threshold_value:
         adjusted_percentage = threshold_value
+        activate_buzzer()
     else:
         adjusted_percentage = waste_percentage
 
